@@ -31,6 +31,7 @@ Hemisphere.prototype.create = function( /* options */) {
   });
   // vector used for calculation
   this.renderCentroid = new Vector();
+  this.baseVector = new Vector();
 };
 
 Hemisphere.prototype.updateSortValue = function() {
@@ -52,21 +53,21 @@ Hemisphere.prototype.renderDome = function( ctx, renderer ) {
   }
   var elem = this.getDomeRenderElement( ctx, renderer );
   var contourAngle = Math.atan2( this.renderNormal.y, this.renderNormal.x );
-  var domeRadius = this.diameter / 2 * this.renderNormal.magnitude();
+  var domeRadius = this.diameter / 2 * this.renderNormal.magnitude2d();
+  var baseRadius = this.baseVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
+
   var x = this.renderOrigin.x;
   var y = this.renderOrigin.y;
 
   if ( renderer.isCanvas ) {
     // canvas
-    var startAngle = contourAngle + TAU/4;
-    var endAngle = contourAngle - TAU/4;
     ctx.beginPath();
-    ctx.arc( x, y, domeRadius, startAngle, endAngle );
+    ctx.ellipse( x, y, domeRadius, baseRadius, contourAngle, TAU/4, -TAU/4 );
   } else if ( renderer.isSvg ) {
     // svg
     contourAngle = ( contourAngle - TAU/4 ) / TAU * 360;
-    this.domeSvgElement.setAttribute( 'd', 'M ' + -domeRadius + ',0 A ' +
-        domeRadius + ',' + domeRadius + ' 0 0 1 ' + domeRadius + ',0' );
+    this.domeSvgElement.setAttribute( 'd', 'M ' + -baseRadius + ',0 A ' +
+        baseRadius + ',' + domeRadius + ' 0 0 1 ' + baseRadius + ',0' );
     this.domeSvgElement.setAttribute( 'transform',
         'translate(' + x + ',' + y + ' ) rotate(' + contourAngle + ')' );
   }
