@@ -37,6 +37,7 @@ Cone.prototype.create = function( /* options */) {
   this.renderCentroid = new Vector();
   this.tangentA = new Vector();
   this.tangentB = new Vector();
+  this.baseVector = new Vector();
 
   this.surfacePathCommands = [
     new PathCommand( 'move', [ {} ] ), // points set in renderConeSurface
@@ -70,7 +71,7 @@ Cone.prototype.renderConeSurface = function( ctx, renderer ) {
   // eccentricity
   var eccenAngle = Math.acos( normalDistance/scale );
   var eccen = Math.sin( eccenAngle );
-  var radius = this.diameter / 2 * scale;
+  var radius = this.baseVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
   // does apex extend beyond eclipse of face
   var isApexVisible = radius * eccen < apexDistance;
   if ( !isApexVisible ) {
