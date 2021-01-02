@@ -70,9 +70,16 @@ Zdog.easeInOut = function( alpha, power ) {
   return isFirstHalf ? curve : 1 - curve;
 };
 
+Zdog.isColor = function(value) {
+  return (typeof value == 'string') || (value && value.isTexture);
+}
+Zdog.cloneColor = function(value) {
+  return (value && value.clone) ? value.clone() : value;
+}
+
 return Zdog;
 
-}));
+} ) );
 /**
  * CanvasRenderer
  */
@@ -116,7 +123,7 @@ CanvasRenderer.renderPath = function( ctx, elem, pathCommands, isClosed ) {
   this.begin( ctx, elem );
   pathCommands.forEach( function( command ) {
     command.render( ctx, elem, CanvasRenderer );
-  });
+  } );
   if ( isClosed ) {
     this.closePath( ctx, elem );
   }
@@ -126,24 +133,38 @@ CanvasRenderer.stroke = function( ctx, elem, isStroke, color, lineWidth ) {
   if ( !isStroke ) {
     return;
   }
-  ctx.strokeStyle = color;
   ctx.lineWidth = lineWidth;
-  ctx.stroke();
+  if (color && color.getCanvasFill) {
+    ctx.save();
+    ctx.strokeStyle = color.getCanvasFill(ctx);
+    ctx.stroke();
+    ctx.restore();
+  } else {
+    ctx.strokeStyle = color;
+    ctx.stroke();
+  }
 };
 
 CanvasRenderer.fill = function( ctx, elem, isFill, color ) {
   if ( !isFill ) {
     return;
   }
-  ctx.fillStyle = color;
-  ctx.fill();
+  if (color && color.getCanvasFill) {
+    ctx.save();
+    ctx.fillStyle = color.getCanvasFill(ctx);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
 };
 
 CanvasRenderer.end = function() {};
 
 return CanvasRenderer;
 
-}));
+} ) );
 /**
  * SvgRenderer
  */
@@ -185,7 +206,7 @@ SvgRenderer.bezier = function( svg, elem, cp0, cp1, end ) {
     getPointString( end );
 };
 
-SvgRenderer.closePath = function(/* elem */) {
+SvgRenderer.closePath = function( /* elem */) {
   return 'Z';
 };
 
@@ -197,7 +218,7 @@ SvgRenderer.renderPath = function( svg, elem, pathCommands, isClosed ) {
   var pathValue = '';
   pathCommands.forEach( function( command ) {
     pathValue += command.render( svg, elem, SvgRenderer );
-  });
+  } );
   if ( isClosed ) {
     pathValue += this.closePath( svg, elem );
   }
@@ -208,12 +229,18 @@ SvgRenderer.stroke = function( svg, elem, isStroke, color, lineWidth ) {
   if ( !isStroke ) {
     return;
   }
+  if (color && color.getSvgFill) {
+    color = color.getSvgFill(svg);
+  }
   elem.setAttribute( 'stroke', color );
   elem.setAttribute( 'stroke-width', lineWidth );
 };
 
 SvgRenderer.fill = function( svg, elem, isFill, color ) {
   var fillColor = isFill ? color : 'none';
+  if (fillColor && fillColor.getSvgFill) {
+    fillColor = fillColor.getSvgFill(svg);
+  }
   elem.setAttribute( 'fill', fillColor );
 };
 
@@ -223,7 +250,7 @@ SvgRenderer.end = function( svg, elem ) {
 
 return SvgRenderer;
 
-}));
+} ) );
 /**
  * Vector
  */
@@ -297,8 +324,8 @@ function rotateProperty( vec, angle, propA, propB ) {
   var sin = Math.sin( angle );
   var a = vec[ propA ];
   var b = vec[ propB ];
-  vec[ propA ] = a*cos - b*sin;
-  vec[ propB ] = b*cos + a*sin;
+  vec[ propA ] = a * cos - b * sin;
+  vec[ propB ] = b * cos + a * sin;
 }
 
 Vector.prototype.isSame = function( pos ) {
@@ -361,7 +388,7 @@ Vector.prototype.lerp = function( pos, alpha ) {
 };
 
 Vector.prototype.magnitude = function() {
-  var sum = this.x*this.x + this.y*this.y + this.z*this.z;
+  var sum = this.x * this.x + this.y * this.y + this.z * this.z;
   return getMagnitudeSqrt( sum );
 };
 
@@ -374,7 +401,7 @@ function getMagnitudeSqrt( sum ) {
 }
 
 Vector.prototype.magnitude2d = function() {
-  var sum = this.x*this.x + this.y*this.y;
+  var sum = this.x * this.x + this.y * this.y;
   return getMagnitudeSqrt( sum );
 };
 
@@ -384,7 +411,7 @@ Vector.prototype.copy = function() {
 
 return Vector;
 
-}));
+} ) );
 /**
  * Anchor
  */
@@ -478,7 +505,7 @@ Anchor.prototype.update = function() {
   // update children
   this.children.forEach( function( child ) {
     child.update();
-  });
+  } );
   this.transform( this.translate, this.rotate, this.scale );
 };
 
@@ -491,7 +518,7 @@ Anchor.prototype.transform = function( translation, rotation, scale ) {
   // transform children
   this.children.forEach( function( child ) {
     child.transform( translation, rotation, scale );
-  });
+  } );
 };
 
 Anchor.prototype.updateGraph = function() {
@@ -499,7 +526,7 @@ Anchor.prototype.updateGraph = function() {
   this.updateFlatGraph();
   this.flatGraph.forEach( function( item ) {
     item.updateSortValue();
-  });
+  } );
   // z-sort
   this.flatGraph.sort( Anchor.shapeSorter );
 };
@@ -519,7 +546,7 @@ Object.defineProperty( Anchor.prototype, 'flatGraph', {
   set: function( graph ) {
     this._flatGraph = graph;
   },
-});
+} );
 
 Anchor.prototype.updateFlatGraph = function() {
   this.flatGraph = this.getFlatGraph();
@@ -535,7 +562,7 @@ Anchor.prototype.addChildFlatGraph = function( flatGraph ) {
   this.children.forEach( function( child ) {
     var childFlatGraph = child.getFlatGraph();
     Array.prototype.push.apply( flatGraph, childFlatGraph );
-  });
+  } );
   return flatGraph;
 };
 
@@ -555,7 +582,7 @@ Anchor.prototype.renderGraphCanvas = function( ctx ) {
   }
   this.flatGraph.forEach( function( item ) {
     item.render( ctx, CanvasRenderer );
-  });
+  } );
 };
 
 Anchor.prototype.renderGraphSvg = function( svg ) {
@@ -565,7 +592,7 @@ Anchor.prototype.renderGraphSvg = function( svg ) {
   }
   this.flatGraph.forEach( function( item ) {
     item.render( svg, SvgRenderer );
-  });
+  } );
 };
 
 // ----- misc ----- //
@@ -589,7 +616,7 @@ Anchor.prototype.copyGraph = function( options ) {
     child.copyGraph({
       addTo: clone,
     });
-  });
+  } );
   return clone;
 };
 
@@ -614,13 +641,13 @@ function getSubclass( Super ) {
     Item.defaults = utils.extend( {}, Super.defaults );
     utils.extend( Item.defaults, defaults );
     // create optionKeys
-    Item.optionKeys = Super.optionKeys.slice(0);
+    Item.optionKeys = Super.optionKeys.slice( 0 );
     // add defaults keys to optionKeys, dedupe
     Object.keys( Item.defaults ).forEach( function( key ) {
       if ( !Item.optionKeys.indexOf( key ) != 1 ) {
         Item.optionKeys.push( key );
       }
-    });
+    } );
 
     Item.subclass = getSubclass( Item );
 
@@ -632,7 +659,7 @@ Anchor.subclass = getSubclass( Anchor );
 
 return Anchor;
 
-}));
+} ) );
 /**
  * Dragger
  */
@@ -750,7 +777,7 @@ Dragger.prototype.dragMove = function( event, pointer ) {
 Dragger.prototype.onmouseup =
 Dragger.prototype.onpointerup =
 Dragger.prototype.ontouchend =
-Dragger.prototype.dragEnd = function(/* event */) {
+Dragger.prototype.dragEnd = function( /* event */) {
   window.removeEventListener( moveEvent, this );
   window.removeEventListener( upEvent, this );
   this.onDragEnd();
@@ -758,7 +785,7 @@ Dragger.prototype.dragEnd = function(/* event */) {
 
 return Dragger;
 
-}));
+} ) );
 /**
  * Illustration
  */
@@ -916,8 +943,8 @@ Illustration.prototype.prerenderCanvas = function() {
   ctx.clearRect( 0, 0, this.canvasWidth, this.canvasHeight );
   ctx.save();
   if ( this.centered ) {
-    var centerX = this.width/2 * this.pixelRatio;
-    var centerY = this.height/2 * this.pixelRatio;
+    var centerX = this.width / 2 * this.pixelRatio;
+    var centerY = this.height / 2 * this.pixelRatio;
     ctx.translate( centerX, centerY );
   }
   var scale = this.pixelRatio * this.zoom;
@@ -987,7 +1014,7 @@ Illustration.prototype.setDragRotate = function( item ) {
   this.bindDrag( this.element );
 };
 
-Illustration.prototype.dragStart = function(/* event, pointer */) {
+Illustration.prototype.dragStart = function( /* event, pointer */) {
   this.dragStartRX = this.dragRotate.rotate.x;
   this.dragStartRY = this.dragRotate.rotate.y;
   Dragger.prototype.dragStart.apply( this, arguments );
@@ -997,8 +1024,8 @@ Illustration.prototype.dragMove = function( event, pointer ) {
   var moveX = pointer.pageX - this.dragStartX;
   var moveY = pointer.pageY - this.dragStartY;
   var displaySize = Math.min( this.width, this.height );
-  var moveRY = moveX / displaySize * TAU;
-  var moveRX = moveY / displaySize * TAU;
+  var moveRY = moveX/displaySize * TAU;
+  var moveRX = moveY/displaySize * TAU;
   this.dragRotate.rotate.x = this.dragStartRX - moveRX;
   this.dragRotate.rotate.y = this.dragStartRY - moveRY;
   Dragger.prototype.dragMove.apply( this, arguments );
@@ -1006,7 +1033,7 @@ Illustration.prototype.dragMove = function( event, pointer ) {
 
 return Illustration;
 
-}));
+} ) );
 /**
  * PathCommand
  */
@@ -1054,13 +1081,13 @@ PathCommand.prototype.reset = function() {
   this.renderPoints.forEach( function( renderPoint, i ) {
     var point = points[i];
     renderPoint.set( point );
-  });
+  } );
 };
 
 PathCommand.prototype.transform = function( translation, rotation, scale ) {
   this.renderPoints.forEach( function( renderPoint ) {
     renderPoint.transform( translation, rotation, scale );
-  });
+  } );
 };
 
 PathCommand.prototype.render = function( ctx, elem, renderer ) {
@@ -1097,7 +1124,7 @@ PathCommand.prototype.arc = function( ctx, elem, renderer ) {
 
 return PathCommand;
 
-}));
+} ) );
 /**
  * Shape
  */
@@ -1179,7 +1206,7 @@ Shape.prototype.updatePathCommands = function() {
     // update previousLastPoint
     previousPoint = command.endRenderPoint;
     return command;
-  });
+  } );
 };
 
 // ----- update ----- //
@@ -1190,7 +1217,14 @@ Shape.prototype.reset = function() {
   // reset command render points
   this.pathCommands.forEach( function( command ) {
     command.reset();
-  });
+  } );
+
+  if (this.backface && this.backface.reset) {
+    this.backface.reset();
+  }
+  if (this.color && this.color.reset) {
+    this.color.reset();
+  }
 };
 
 Shape.prototype.transform = function( translation, rotation, scale ) {
@@ -1201,11 +1235,17 @@ Shape.prototype.transform = function( translation, rotation, scale ) {
   // transform points
   this.pathCommands.forEach( function( command ) {
     command.transform( translation, rotation, scale );
-  });
+  } );
   // transform children
   this.children.forEach( function( child ) {
     child.transform( translation, rotation, scale );
-  });
+  } );
+  if (this.backface && this.backface.transform) {
+    this.backface.transform( translation, rotation, scale );
+  }
+  if (this.color && this.color.transform) {
+    this.color.transform( translation, rotation, scale );
+  }
 };
 
 Shape.prototype.updateSortValue = function() {
@@ -1224,7 +1264,7 @@ Shape.prototype.updateSortValue = function() {
   for ( var i = 0; i < pointCount; i++ ) {
     sortValueTotal += this.pathCommands[i].endRenderPoint.z;
   }
-  this.sortValue = sortValueTotal / pointCount;
+  this.sortValue = sortValueTotal/pointCount;
 };
 
 // ----- render ----- //
@@ -1253,17 +1293,16 @@ Shape.prototype.render = function( ctx, renderer ) {
 
 var TAU = utils.TAU;
 // Safari does not render lines with no size, have to render circle instead
-Shape.prototype.renderCanvasDot = function( ctx ) {
+Shape.prototype.renderCanvasDot = function( ctx , renderer) {
   var lineWidth = this.getLineWidth();
   if ( !lineWidth ) {
     return;
   }
-  ctx.fillStyle = this.getRenderColor();
   var point = this.pathCommands[0].endRenderPoint;
   ctx.beginPath();
   var radius = lineWidth/2;
   ctx.arc( point.x, point.y, radius, 0, TAU );
-  ctx.fill();
+  renderer.fill(ctx, null, true, this.getRenderColor() );
 };
 
 Shape.prototype.getLineWidth = function() {
@@ -1278,7 +1317,7 @@ Shape.prototype.getLineWidth = function() {
 
 Shape.prototype.getRenderColor = function() {
   // use backface color if applicable
-  var isBackfaceColor = typeof this.backface == 'string' && this.isFacingBack;
+  var isBackfaceColor = utils.isColor(this.backface) && this.isFacingBack;
   var color = isBackfaceColor ? this.backface : this.color;
   return color;
 };
@@ -1304,7 +1343,7 @@ Shape.prototype.getRenderElement = function( ctx, renderer ) {
   }
   if ( !this.svgElement ) {
     // create svgElement
-    this.svgElement = document.createElementNS( svgURI, 'path');
+    this.svgElement = document.createElementNS( svgURI, 'path' );
     this.svgElement.setAttribute( 'stroke-linecap', 'round' );
     this.svgElement.setAttribute( 'stroke-linejoin', 'round' );
   }
@@ -1313,7 +1352,7 @@ Shape.prototype.getRenderElement = function( ctx, renderer ) {
 
 return Shape;
 
-}));
+} ) );
 /**
  * Group
  */
@@ -1342,7 +1381,7 @@ Group.prototype.updateSortValue = function() {
   this.flatGraph.forEach( function( item ) {
     item.updateSortValue();
     sortValueTotal += item.sortValue;
-  });
+  } );
   // average sort value of all points
   // def not geometrically correct, but works for me
   this.sortValue = sortValueTotal / this.flatGraph.length;
@@ -1361,7 +1400,7 @@ Group.prototype.render = function( ctx, renderer ) {
 
   this.flatGraph.forEach( function( item ) {
     item.render( ctx, renderer );
-  });
+  } );
 };
 
 // actual group flatGraph only used inside group
@@ -1378,7 +1417,7 @@ Group.prototype.getFlatGraph = function() {
 
 return Group;
 
-}));
+} ) );
 /**
  * Rect
  */
@@ -1414,7 +1453,7 @@ Rect.prototype.setPath = function() {
 
 return Rect;
 
-}));
+} ) );
 /**
  * RoundedRect
  */
@@ -1454,7 +1493,7 @@ RoundedRect.prototype.setPath = function() {
     { arc: [
       { x: xA, y: -yA },
       { x: xA, y: -yB },
-    ]},
+    ] },
   ];
   // bottom right corner
   if ( yB ) {
@@ -1463,7 +1502,7 @@ RoundedRect.prototype.setPath = function() {
   path.push({ arc: [
     { x: xA, y:  yA },
     { x: xB, y:  yA },
-  ]});
+  ] });
   // bottom left corner
   if ( xB ) {
     path.push({ x: -xB, y: yA });
@@ -1471,7 +1510,7 @@ RoundedRect.prototype.setPath = function() {
   path.push({ arc: [
     { x: -xA, y:  yA },
     { x: -xA, y:  yB },
-  ]});
+  ] });
   // top left corner
   if ( yB ) {
     path.push({ x: -xA, y: -yB });
@@ -1479,7 +1518,7 @@ RoundedRect.prototype.setPath = function() {
   path.push({ arc: [
     { x: -xA, y: -yA },
     { x: -xB, y: -yA },
-  ]});
+  ] });
 
   // back to top right corner
   if ( xB ) {
@@ -1491,7 +1530,7 @@ RoundedRect.prototype.setPath = function() {
 
 return RoundedRect;
 
-}));
+} ) );
 /**
  * Ellipse
  */
@@ -1520,41 +1559,41 @@ var Ellipse = Shape.subclass({
 Ellipse.prototype.setPath = function() {
   var width = this.width != undefined ? this.width : this.diameter;
   var height = this.height != undefined ? this.height : this.diameter;
-  var x = width / 2;
-  var y = height / 2;
+  var x = width/2;
+  var y = height/2;
   this.path = [
     { x: 0, y: -y },
     { arc: [ // top right
       { x: x, y: -y },
       { x: x, y: 0 },
-    ]},
+    ] },
   ];
   // bottom right
   if ( this.quarters > 1 ) {
     this.path.push({ arc: [
       { x: x, y: y },
       { x: 0, y: y },
-    ]});
+    ] });
   }
   // bottom left
   if ( this.quarters > 2 ) {
     this.path.push({ arc: [
       { x: -x, y: y },
       { x: -x, y: 0 },
-    ]});
+    ] });
   }
   // top left
   if ( this.quarters > 3 ) {
     this.path.push({ arc: [
       { x: -x, y: -y },
       { x: 0, y: -y },
-    ]});
+    ] });
   }
 };
 
 return Ellipse;
 
-}));
+} ) );
 /**
  * Shape
  */
@@ -1580,8 +1619,8 @@ var TAU = utils.TAU;
 
 Polygon.prototype.setPath = function() {
   this.path = [];
-  for ( var i=0; i < this.sides; i++ ) {
-    var theta = i/this.sides * TAU - TAU/4;
+  for ( var i = 0; i < this.sides; i++ ) {
+    var theta = i / this.sides * TAU - TAU/4;
     var x = Math.cos( theta ) * this.radius;
     var y = Math.sin( theta ) * this.radius;
     this.path.push({ x: x, y: y });
@@ -1590,7 +1629,7 @@ Polygon.prototype.setPath = function() {
 
 return Polygon;
 
-}));
+} ) );
 /**
  * Hemisphere composite shape
  */
@@ -1614,16 +1653,17 @@ var Hemisphere = Ellipse.subclass({
 
 var TAU = utils.TAU;
 
-Hemisphere.prototype.create = function(/* options */) {
+Hemisphere.prototype.create = function( /* options */) {
   // call super
   Ellipse.prototype.create.apply( this, arguments );
   // composite shape, create child shapes
   this.apex = new Anchor({
     addTo: this,
-    translate: { z: this.diameter/2 },
+    translate: { z: this.diameter / 2 },
   });
   // vector used for calculation
   this.renderCentroid = new Vector();
+  this.baseVector = new Vector();
 };
 
 Hemisphere.prototype.updateSortValue = function() {
@@ -1645,21 +1685,21 @@ Hemisphere.prototype.renderDome = function( ctx, renderer ) {
   }
   var elem = this.getDomeRenderElement( ctx, renderer );
   var contourAngle = Math.atan2( this.renderNormal.y, this.renderNormal.x );
-  var domeRadius = this.diameter/2 * this.renderNormal.magnitude();
+  var domeRadius = this.diameter / 2 * this.renderNormal.magnitude2d();
+  var baseRadius = this.baseVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
+
   var x = this.renderOrigin.x;
   var y = this.renderOrigin.y;
 
   if ( renderer.isCanvas ) {
     // canvas
-    var startAngle = contourAngle + TAU/4;
-    var endAngle = contourAngle - TAU/4;
     ctx.beginPath();
-    ctx.arc( x, y, domeRadius, startAngle, endAngle );
+    ctx.ellipse( x, y, domeRadius, baseRadius, contourAngle, TAU/4, -TAU/4 );
   } else if ( renderer.isSvg ) {
     // svg
-    contourAngle = (contourAngle - TAU/4) / TAU * 360;
-    this.domeSvgElement.setAttribute( 'd', 'M ' + -domeRadius + ',0 A ' +
-        domeRadius + ',' + domeRadius + ' 0 0 1 ' + domeRadius + ',0' );
+    contourAngle = ( contourAngle - TAU/4 ) / TAU * 360;
+    this.domeSvgElement.setAttribute( 'd', 'M ' + -baseRadius + ',0 A ' +
+        baseRadius + ',' + domeRadius + ' 0 0 1 ' + baseRadius + ',0' );
     this.domeSvgElement.setAttribute( 'transform',
         'translate(' + x + ',' + y + ' ) rotate(' + contourAngle + ')' );
   }
@@ -1677,7 +1717,7 @@ Hemisphere.prototype.getDomeRenderElement = function( ctx, renderer ) {
   }
   if ( !this.domeSvgElement ) {
     // create svgElement
-    this.domeSvgElement = document.createElementNS( svgURI, 'path');
+    this.domeSvgElement = document.createElementNS( svgURI, 'path' );
     this.domeSvgElement.setAttribute( 'stroke-linecap', 'round' );
     this.domeSvgElement.setAttribute( 'stroke-linejoin', 'round' );
   }
@@ -1686,7 +1726,7 @@ Hemisphere.prototype.getDomeRenderElement = function( ctx, renderer ) {
 
 return Hemisphere;
 
-}));
+} ) );
 /**
  * Cylinder composite shape
  */
@@ -1762,7 +1802,7 @@ CylinderGroup.prototype.getRenderElement = function( ctx, renderer ) {
   }
   if ( !this.svgElement ) {
     // create svgElement
-    this.svgElement = document.createElementNS( svgURI, 'path');
+    this.svgElement = document.createElementNS( svgURI, 'path' );
   }
   return this.svgElement;
 };
@@ -1788,7 +1828,7 @@ var Cylinder = Shape.subclass({
 
 var TAU = utils.TAU;
 
-Cylinder.prototype.create = function(/* options */) {
+Cylinder.prototype.create = function( /* options */) {
   // call super
   Shape.prototype.create.apply( this, arguments );
   // composite shape, create child shapes
@@ -1798,7 +1838,7 @@ Cylinder.prototype.create = function(/* options */) {
     color: this.color,
     visible: this.visible,
   });
-  var baseZ = this.length/2;
+  var baseZ = this.length / 2;
   var baseColor = this.backface || true;
   // front outside base
   this.frontBase = this.group.frontBase = new Ellipse({
@@ -1809,14 +1849,14 @@ Cylinder.prototype.create = function(/* options */) {
     color: this.color,
     stroke: this.stroke,
     fill: this.fill,
-    backface: this.frontFace || baseColor,
+    backface: utils.cloneColor(this.frontFace || baseColor),
     visible: this.visible,
   });
   // back outside base
   this.rearBase = this.group.rearBase = this.frontBase.copy({
     translate: { z: -baseZ },
     rotate: { y: 0 },
-    backface: baseColor,
+    backface: utils.cloneColor(baseColor),
   });
 };
 
@@ -1842,14 +1882,14 @@ childProperties.forEach( function( property ) {
         this.group[ property ] = value;
       }
     },
-  });
-});
+  } );
+} );
 
 // TODO child property setter for backface, frontBaseColor, & rearBaseColor
 
 return Cylinder;
 
-}));
+} ) );
 /**
  * Cone composite shape
  */
@@ -1871,27 +1911,49 @@ return Cylinder;
 var Cone = Ellipse.subclass({
   length: 1,
   fill: true,
+  frontDiameter : 0,
+  frontFace: undefined,
 });
 
 var TAU = utils.TAU;
 
-Cone.prototype.create = function(/* options */) {
+Cone.prototype.create = function( /* options */) {
   // call super
   Ellipse.prototype.create.apply( this, arguments );
   // composite shape, create child shapes
+  if (this.frontDiameter >= this.diameter) {
+    throw "frontDiameter should be < diameter"
+  } else {
+    this.frontDiameter = Math.max(this.frontDiameter, 0);
+  }
+
+  this.projectedLength = this.diameter * this.length /  (this.diameter - this.frontDiameter);
   this.apex = new Anchor({
     addTo: this,
-    translate: { z: this.length },
+    translate: { z: this.projectedLength },
   });
+
+  if (this.frontDiameter > 0) {
+    this.topSurface = new Ellipse ({
+      addTo: this,
+      diameter: this.frontDiameter,
+      translate: {z: this.length},
+      stroke: this.stroke,
+      fill: this.fill,
+      color: this.frontFace || this.color,
+      backface: this.color
+    });
+  }
 
   // vectors used for calculation
   this.renderApex = new Vector();
   this.renderCentroid = new Vector();
-  this.tangentA = new Vector();
-  this.tangentB = new Vector();
+  this.tangent = new Vector();
+  this.baseVector = new Vector();
 
   this.surfacePathCommands = [
     new PathCommand( 'move', [ {} ] ), // points set in renderConeSurface
+    new PathCommand( 'line', [ {} ] ),
     new PathCommand( 'line', [ {} ] ),
     new PathCommand( 'line', [ {} ] ),
   ];
@@ -1920,37 +1982,30 @@ Cone.prototype.renderConeSurface = function( ctx, renderer ) {
   var apexDistance = this.renderApex.magnitude2d();
   var normalDistance = this.renderNormal.magnitude2d();
   // eccentricity
-  var eccenAngle = Math.acos( normalDistance / scale );
+  var eccenAngle = Math.acos( normalDistance/scale );
   var eccen = Math.sin( eccenAngle );
-  var radius = this.diameter/2 * scale;
+  var radius = this.baseVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
+
   // does apex extend beyond eclipse of face
   var isApexVisible = radius * eccen < apexDistance;
   if ( !isApexVisible ) {
     return;
   }
   // update tangents
-  var apexAngle = Math.atan2( this.renderNormal.y, this.renderNormal.x ) +
-      TAU/2;
-  var projectLength = apexDistance / eccen;
-  var projectAngle = Math.acos( radius / projectLength );
+  var apexAngle = Math.atan2( this.renderNormal.y, this.renderNormal.x ) + TAU/2;
+  var projectLength = apexDistance/eccen;
+  var projectAngle = Math.acos( radius/projectLength );
+
   // set tangent points
-  var tangentA = this.tangentA;
-  var tangentB = this.tangentB;
+  this.setSurfaceRenderPoint( 0, 3, this.renderOrigin, projectAngle, radius, eccen, apexAngle);
 
-  tangentA.x = Math.cos( projectAngle ) * radius * eccen;
-  tangentA.y = Math.sin( projectAngle ) * radius;
-
-  tangentB.set( this.tangentA );
-  tangentB.y *= -1;
-
-  tangentA.rotateZ( apexAngle );
-  tangentB.rotateZ( apexAngle );
-  tangentA.add( this.renderOrigin );
-  tangentB.add( this.renderOrigin );
-
-  this.setSurfaceRenderPoint( 0, tangentA );
-  this.setSurfaceRenderPoint( 1, this.apex.renderOrigin );
-  this.setSurfaceRenderPoint( 2, tangentB );
+  if (this.frontDiameter > 0) {
+    var radius2 = this.baseVector.set(this.topSurface.renderOrigin).subtract(this.topSurface.pathCommands[0].renderPoints[0]).magnitude();
+    this.setSurfaceRenderPoint( 1, 2, this.topSurface.renderOrigin, projectAngle, radius2, eccen, apexAngle);
+  } else {
+    this.surfacePathCommands[ 1 ].renderPoints[0].set( this.apex.renderOrigin );
+    this.surfacePathCommands[ 2 ].renderPoints[0].set( this.apex.renderOrigin );
+  }
 
   // render
   var elem = this.getSurfaceRenderElement( ctx, renderer );
@@ -1968,21 +2023,34 @@ Cone.prototype.getSurfaceRenderElement = function( ctx, renderer ) {
   }
   if ( !this.surfaceSvgElement ) {
     // create svgElement
-    this.surfaceSvgElement = document.createElementNS( svgURI, 'path');
+    this.surfaceSvgElement = document.createElementNS( svgURI, 'path' );
     this.surfaceSvgElement.setAttribute( 'stroke-linecap', 'round' );
     this.surfaceSvgElement.setAttribute( 'stroke-linejoin', 'round' );
   }
   return this.surfaceSvgElement;
 };
 
-Cone.prototype.setSurfaceRenderPoint = function( index, point ) {
-  var renderPoint = this.surfacePathCommands[ index ].renderPoints[0];
-  renderPoint.set( point );
+Cone.prototype.setSurfaceRenderPoint = function(index1, index2, origin, projectAngle, radius, eccen, apexAngle) {
+  var x = Math.cos( projectAngle ) * radius * eccen;
+  var y = Math.sin( projectAngle ) * radius;
+
+  var tangent = this.tangent;
+  tangent.x = x;
+  tangent.y = y;
+  tangent.rotateZ( apexAngle );
+  tangent.add( origin );
+  this.surfacePathCommands[ index1 ].renderPoints[0].set( tangent );
+
+  tangent.x = x;
+  tangent.y = -y;
+  tangent.rotateZ( apexAngle );
+  tangent.add( origin );
+  this.surfacePathCommands[ index2 ].renderPoints[0].set( tangent );
 };
 
 return Cone;
 
-}));
+} ) );
 /**
  * Box composite shape
  */
@@ -2023,16 +2091,17 @@ var boxDefaults = utils.extend( {}, Shape.defaults );
 delete boxDefaults.path;
 faceNames.forEach( function( faceName ) {
   boxDefaults[ faceName ] = true;
-});
+} );
 utils.extend( boxDefaults, {
   width: 1,
   height: 1,
   depth: 1,
   fill: true,
-});
+} );
 
 var Box = Anchor.subclass( boxDefaults );
 
+/* eslint-disable no-self-assign */
 Box.prototype.create = function( options ) {
   Anchor.prototype.create.call( this, options );
   this.updatePath();
@@ -2046,6 +2115,7 @@ Box.prototype.updatePath = function() {
     this[ faceName ] = this[ faceName ];
   }, this );
 };
+/* eslint-enable no-self-assign */
 
 faceNames.forEach( function( faceName ) {
   var _faceName = '_' + faceName;
@@ -2057,8 +2127,8 @@ faceNames.forEach( function( faceName ) {
       this[ _faceName ] = value;
       this.setFace( faceName, value );
     },
-  });
-});
+  } );
+} );
 
 Box.prototype.setFace = function( faceName, value ) {
   var rectProperty = faceName + 'Rect';
@@ -2070,7 +2140,11 @@ Box.prototype.setFace = function( faceName, value ) {
   }
   // update & add face
   var options = this.getFaceOptions( faceName );
-  options.color = typeof value == 'string' ? value : this.color;
+  if (utils.isColor(value)) {
+    options.color = value;
+  } else {
+    options.color = utils.cloneColor(this.color);
+  }
 
   if ( rect ) {
     // update previous
@@ -2088,36 +2162,36 @@ Box.prototype.getFaceOptions = function( faceName ) {
     frontFace: {
       width: this.width,
       height: this.height,
-      translate: { z: this.depth/2 },
+      translate: { z: this.depth / 2 },
     },
     rearFace: {
       width: this.width,
       height: this.height,
-      translate: { z: -this.depth/2 },
+      translate: { z: -this.depth / 2 },
       rotate: { y: TAU/2 },
     },
     leftFace: {
       width: this.depth,
       height: this.height,
-      translate: { x: -this.width/2 },
+      translate: { x: -this.width / 2 },
       rotate: { y: -TAU/4 },
     },
     rightFace: {
       width: this.depth,
       height: this.height,
-      translate: { x: this.width/2 },
+      translate: { x: this.width / 2 },
       rotate: { y: TAU/4 },
     },
     topFace: {
       width: this.width,
       height: this.depth,
-      translate: { y: -this.height/2 },
+      translate: { y: -this.height / 2 },
       rotate: { x: -TAU/4 },
     },
     bottomFace: {
       width: this.width,
       height: this.depth,
-      translate: { y: this.height/2 },
+      translate: { y: this.height / 2 },
       rotate: { x: TAU/4 },
     },
   }[ faceName ];
@@ -2145,12 +2219,234 @@ childProperties.forEach( function( property ) {
         }
       }, this );
     },
-  });
-});
+  } );
+} );
 
 return Box;
 
-}));
+} ) );
+/**
+ * Texture
+ */
+( function( root, factory ) {
+    // module definition
+    if ( typeof module == 'object' && module.exports ) {
+      // CommonJS
+      module.exports = factory(require('./vector'));
+    } else {
+      // browser global
+      var Zdog = root.Zdog;
+      Zdog.Texture = factory(Zdog.Vector);
+    }
+  }( this, function factory(Vector) {
+
+  /**
+   * Calculates the inverse of the matrix:
+   *  | x1 x2 x3 |
+   *  | y1 y2 y3 |
+   *  |  1  1  1 |
+   */
+  function inverse(x1, y1, x2, y2, x3, y3) {
+    let tp = [
+      y2 - y3, x3 - x2, x2*y3 - x3*y2,
+      y3 - y1, x1 - x3, x3*y1 - x1*y3,
+      y1 - y2, x2 - x1, x1*y2 - x2*y1];
+    let det = tp[2] + tp[5] + tp[8];
+    return tp.map(function(x) { return x / det;});
+  }
+
+  function parsePointMap(size, map) {
+    if (!Array.isArray(map) || !map.length) {
+      map = [0, 0, size[0], size[1]];
+    }
+    if (typeof(map[0]) == "number") {
+      if (map.length < 4) {
+        let tmp = map;
+        map = [0, 0, size[0], size[1]];
+        for (let i = 0; i < tmp.length; i++) {
+          map[i] = tmp[i];
+        }
+      }
+      return [
+          new Vector({x:map[0], y:map[1], z:1}),
+          new Vector({x:map[0] + map[2], y:map[1], z:1}),
+          new Vector({x:map[0], y:map[1] + map[3], z:1})
+        ];
+    } else {
+      return [new Vector(map[0]), new Vector(map[1]), new Vector(map[2])];
+    }
+  }
+
+  var idCounter = 0;
+
+  const optionKeys = [
+    'img',
+    'linearGrad',
+    'radialGrad',
+    'colorStops',
+    'src',
+    'dst'
+  ]
+
+  /**
+   * Creates a tecture map. Possible options:
+   *    img: Image object to be used as texture
+   *    linearGrad: [x1, y1, x2, y2]  Array defining the linear gradient
+   *    radialGrad: [x0, y0, r0, x1, y1, r1] Array defining the radial gradient
+   *    colorStops: [offset1, color1, offset2, color2...] Array defining the color
+   *                stops for the gradient, offset must be in range [0, 1]
+   *
+   *    src: <surface definition> Represents the surface for the texture. Above
+   *         gradient definition should be represented in this coordinate space
+   *    dst: <surface definition> Represents the surface of the object. This allows
+   *         keeping the texture definition independent of the surface definition
+   *
+   *   <surface definition> Can be represented in one of the following ways:
+   *     [x, y, width, height] => We use 3 points top-left, top-right, bottom-left
+   *     [x, y] => image/gradient size is used for width and height with the above rule
+   *     [vector, vector, vector] => provided points are used
+   */
+  function Texture(options) {
+    this.id = idCounter++;
+    this.isTexture = true;
+
+    options = options || { }
+    for (var key in options ) {
+      if (optionKeys.indexOf( key ) != -1 ) {
+        this[key] = options[key];
+      }
+    }
+
+    var size;
+    if (options.img) {
+      size = [options.img.width, options.img.height];
+    } else if (options.linearGrad) {
+      size = [Math.abs(options.linearGrad[2] - options.linearGrad[0]), Math.abs(options.linearGrad[3] - options.linearGrad[1])];
+    } else if (options.radialGrad) {
+      size = [Math.abs(options.radialGrad[3] - options.radialGrad[0]), Math.abs(options.radialGrad[4] - options.radialGrad[1])];
+    } else {
+      throw "One of [img, linearGrad, radialGrad] is required";
+    }
+    if (size[0] == 0) size[0] = size[1];
+    if (size[1] == 0) size[1] = size[0];
+
+    this.src = parsePointMap(size, options.src);
+    this.dst = parsePointMap(size, options.dst);
+
+    this.srcInverse = inverse(
+      this.src[0].x, this.src[0].y,
+      this.src[1].x, this.src[1].y,
+      this.src[2].x, this.src[2].y);
+    this.p1 = new Vector();
+    this.p2 = new Vector();
+    this.p3 = new Vector();
+    this.matrix = [0, 0, 0, 0, 0, 0];
+  };
+
+  Texture.prototype.getMatrix = function() {
+    let m = this.matrix;
+    let inverse = this.srcInverse;
+    m[0] = this.p1.x * inverse[0] + this.p2.x * inverse[3] + this.p3.x * inverse[6];
+    m[1] = this.p1.y * inverse[0] + this.p2.y * inverse[3] + this.p3.y * inverse[6];
+    m[2] = this.p1.x * inverse[1] + this.p2.x * inverse[4] + this.p3.x * inverse[7];
+    m[3] = this.p1.y * inverse[1] + this.p2.y * inverse[4] + this.p3.y * inverse[7];
+    m[4] = this.p1.x * inverse[2] + this.p2.x * inverse[5] + this.p3.x * inverse[8];
+    m[5] = this.p1.y * inverse[2] + this.p2.y * inverse[5] + this.p3.y * inverse[8];
+    return m;
+  }
+
+  Texture.prototype.getCanvasFill = function(ctx) {
+    if (!this.pattern) {
+      if (this.img) {
+        this.pattern = ctx.createPattern(this.img, "repeat");
+      } else {
+        this.pattern = this.linearGrad
+          ? ctx.createLinearGradient.apply(ctx, this.linearGrad)
+          : ctx.createRadialGradient.apply(ctx, this.radialGrad);
+        if (this.colorStops) {
+          for (var i = 0; i < this.colorStops.length; i+=2) {
+            this.pattern.addColorStop(this.colorStops[i], this.colorStops[i+1]);
+          }
+        }
+      }
+    }
+    // pattern.setTransform is not supported in IE,
+    // so transform the context instead
+    ctx.transform.apply(ctx, this.getMatrix());
+    return this.pattern;
+  };
+
+  const svgURI = 'http://www.w3.org/2000/svg';
+  Texture.prototype.getSvgFill = function(svg) {
+    if (!this.svgPattern) {
+      if (this.img) {
+        this.svgPattern = document.createElementNS( svgURI, 'pattern');
+        this.svgPattern.setAttribute("width", this.img.width);
+        this.svgPattern.setAttribute("height", this.img.height);
+        this.svgPattern.setAttribute("patternUnits", "userSpaceOnUse");
+        this.attrTransform = "patternTransform";
+
+        let img = document.createElementNS( svgURI, 'image');
+        img.setAttribute("href", this.img.src);
+        this.svgPattern.appendChild(img);
+      } else {
+        var type, vals, keys;
+        if (this.linearGrad) {
+          type = "linearGradient";
+          vals = this.linearGrad;
+          keys = ["x1", "y1", "x2", "y2"]
+        } else {
+          type = "radialGradient";
+          vals = this.radialGrad;
+          keys = ["fx", "fy", "fr", "cx", "cy", "r"]
+        }
+        this.svgPattern = document.createElementNS( svgURI, type);
+        for (var i = 0; i < keys.length; i++) {
+          this.svgPattern.setAttribute(keys[i], vals[i]);
+        }
+
+        if (this.colorStops) {
+          for (var i = 0; i < this.colorStops.length; i+=2) {
+            let colorStop = document.createElementNS(svgURI, 'stop' );
+            colorStop.setAttribute("offset", this.colorStops[i]);
+            colorStop.setAttribute("style", "stop-color:" + this.colorStops[i+1]);
+            this.svgPattern.appendChild(colorStop);
+          }
+        }
+        this.svgPattern.setAttribute("gradientUnits", "userSpaceOnUse");
+        this.attrTransform = "gradientTransform";
+      }
+      this.svgPattern.setAttribute("id", "texture_" + this.id);
+      this._svgUrl = 'url(#texture_' + this.id + ')';
+
+      this.defs = document.createElementNS(svgURI, 'defs' );
+      this.defs.appendChild(this.svgPattern);
+    }
+
+    this.svgPattern.setAttribute(this.attrTransform, 'matrix(' + this.getMatrix().join(' ') + ')');
+    svg.appendChild( this.defs );
+    return this._svgUrl;
+  }
+
+  // ----- update ----- //
+  Texture.prototype.reset = function() {
+    this.p1.set(this.dst[0]);
+    this.p2.set(this.dst[1]);
+    this.p3.set(this.dst[2]);
+  };
+
+  Texture.prototype.transform = function( translation, rotation, scale ) {
+    this.p1.transform(translation, rotation, scale);
+    this.p2.transform(translation, rotation, scale);
+    this.p3.transform(translation, rotation, scale);
+  };
+
+  Texture.prototype.clone = function() {
+    return new Texture(this);
+  };
+
+  return Texture;
+} ) );
 /**
  * Index
  */
@@ -2177,15 +2473,18 @@ return Box;
         require('./hemisphere'),
         require('./cylinder'),
         require('./cone'),
-        require('./box')
+        require('./box'),
+        require('./texture')
     );
   } else if ( typeof define == 'function' && define.amd ) {
     /* globals define */ // AMD
     define( 'zdog', [], root.Zdog );
   }
-})( this, function factory( Zdog, CanvasRenderer, SvgRenderer, Vector, Anchor,
+/* eslint-disable max-params */
+} )( this, function factory( Zdog, CanvasRenderer, SvgRenderer, Vector, Anchor,
     Dragger, Illustration, PathCommand, Shape, Group, Rect, RoundedRect,
-    Ellipse, Polygon, Hemisphere, Cylinder, Cone, Box ) {
+    Ellipse, Polygon, Hemisphere, Cylinder, Cone, Box, Texture ) {
+/* eslint-enable max-params */
 
       Zdog.CanvasRenderer = CanvasRenderer;
       Zdog.SvgRenderer = SvgRenderer;
@@ -2204,6 +2503,7 @@ return Box;
       Zdog.Cylinder = Cylinder;
       Zdog.Cone = Cone;
       Zdog.Box = Box;
+      Zdog.Texture = Texture;
 
       return Zdog;
-});
+} );

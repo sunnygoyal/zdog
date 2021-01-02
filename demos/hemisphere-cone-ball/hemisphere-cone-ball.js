@@ -1,7 +1,7 @@
 // ----- setup ----- //
 
 var sceneSize = 48;
-var isSpinning = true;
+var isSpinning = false;
 var TAU = Zdog.TAU;
 
 var illo = new Zdog.Illustration({
@@ -14,6 +14,8 @@ var illo = new Zdog.Illustration({
   onResize: function( width, height ) {
     this.zoom = Math.floor( Math.min( width, height ) / sceneSize );
   },
+  onDragMove: animate,
+
 });
 
 // colors
@@ -25,48 +27,50 @@ var eggplant = '#636';
 
 // ----- model ----- //
 
-var hemi = new Zdog.Hemisphere({
-  addTo: illo,
-  diameter: 13,
-  translate: { y: -16 },
-  rotate: { x: -TAU/4 },
-  color: garnet,
-  backface: eggplant,
-  stroke: false,
-});
+// var hemi = new Zdog.Hemisphere({
+//   addTo: illo,
+//   diameter: 13,
+//   translate: { y: -16 },
+//   rotate: { x: -TAU/4 },
+//   color: garnet,
+//   backface: eggplant,
+//   stroke: false,
+// });
 var cone = new Zdog.Cone({
   addTo: illo,
   diameter: 13,
+  frontDiameter: 6,
   length: 6.5,
   translate: { y: 16 },
   rotate: { x: TAU/4 },
   color: garnet,
   backface: eggplant,
+  frontFace: orange,
   stroke: false,
 });
 
-var colorWheel = [ eggplant, garnet, orange, gold, yellow ];
+// var colorWheel = [ eggplant, garnet, orange, gold, yellow ];
 
-[ true, false ].forEach( function( isHemi ) {
-  var shape = isHemi ? hemi : cone;
+// [ true, false ].forEach( function( isHemi ) {
+//   var shape = isHemi ? hemi : cone;
 
-  for ( var i = 0; i < 5; i++ ) {
-    var rotor1 = new Zdog.Anchor({
-      addTo: illo,
-      rotate: { y: TAU/5 * i },
-    });
-    var rotor2 = new Zdog.Anchor({
-      addTo: rotor1,
-      rotate: { x: TAU/6 },
-    });
+//   for ( var i = 0; i < 5; i++ ) {
+//     var rotor1 = new Zdog.Anchor({
+//       addTo: illo,
+//       rotate: { y: TAU/5 * i },
+//     });
+//     var rotor2 = new Zdog.Anchor({
+//       addTo: rotor1,
+//       rotate: { x: TAU/6 },
+//     });
 
-    shape.copy({
-      addTo: rotor2,
-      color: colorWheel[i],
-      backface: colorWheel[ ( i + 7 ) % 5 ],
-    });
-  }
-} );
+//     shape.copy({
+//       addTo: rotor2,
+//       color: colorWheel[i],
+//       backface: colorWheel[ ( i + 7 ) % 5 ],
+//     });
+//   }
+// } );
 
 // ----- animate ----- //
 
@@ -81,9 +85,9 @@ var cycleCount = 180;
 var turnLimit = keyframes.length - 1;
 
 function animate() {
-  spin();
+  // spin();
   illo.updateRenderGraph();
-  requestAnimationFrame( animate );
+  // requestAnimationFrame( animate );
 }
 
 function spin() {

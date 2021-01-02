@@ -51,9 +51,18 @@ Hemisphere.prototype.renderDome = function( ctx, renderer ) {
   if ( !this.visible ) {
     return;
   }
+  var normalScale = this.renderNormal.magnitude();
+  if (normalScale <= 0) {
+    return;
+  }
+  // eccentricity
+  var normalProjectedScale = this.renderNormal.magnitude2d();
+  var eccenAngle = Math.acos( normalProjectedScale/normalScale);
+  var eccen = Math.sin( eccenAngle );
+
   var elem = this.getDomeRenderElement( ctx, renderer );
   var contourAngle = Math.atan2( this.renderNormal.y, this.renderNormal.x );
-  var domeRadius = this.diameter / 2 * this.renderNormal.magnitude2d();
+  var domeRadius = this.diameter / 2 * Math.sqrt(normalProjectedScale * normalProjectedScale + eccen * eccen)
   var baseRadius = this.baseVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
 
   var x = this.renderOrigin.x;
