@@ -121,8 +121,12 @@ Hemisphere.prototype.renderDome = function( ctx, renderer ) {
   } else if ( renderer.isSvg ) {
     // svg
     contourAngle = ( contourAngle - TAU/4 ) / TAU * 360;
-    this.domeSvgElement.setAttribute( 'd', 'M ' + -baseRadius + ',0 A ' +
-        baseRadius + ',' + domeRadius + ' 0 0 1 ' + baseRadius + ',0' );
+    var endX = baseRadius * Math.sin(TAU / 2 - midAngle);
+    var endY = domeRadius * Math.cos(TAU / 2 - midAngle);
+    this.domeSvgElement.setAttribute( 'd', 'M ' + -baseRadius + ',0'
+      + ' A ' + baseRadius + ',' + domeRadius + ' 0 0 1 ' + -endX + ',' + endY
+      + ' H ' + endX
+      + ' A ' + baseRadius + ',' + domeRadius + ' 0 0 1 ' + baseRadius + ', 0');
     this.domeSvgElement.setAttribute( 'transform',
         'translate(' + x + ',' + y + ' ) rotate(' + contourAngle + ')' );
   }
