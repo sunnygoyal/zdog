@@ -17,6 +17,8 @@
 
 var Hemisphere = Ellipse.subclass({
   fill: true,
+  frontDiameter : 0,
+  frontFace: undefined,
 });
 
 var TAU = utils.TAU;
@@ -24,6 +26,30 @@ var TAU = utils.TAU;
 Hemisphere.prototype.create = function( /* options */) {
   // call super
   Ellipse.prototype.create.apply( this, arguments );
+  if (this.frontDiameter >= this.diameter) {
+    throw "frontDiameter should be < diameter"
+  } else {
+    this.frontDiameter = Math.max(this.frontDiameter, 0);
+  }
+
+  let x = 1; // ratio: height / radius
+  if (this.frontDiameter > 0) {
+    let angle = Math.acos(this.frontDiameter / this.diameter);
+    x = Math.sin(angle);
+    let y = x * this.diameter / 2;
+
+    this.topSurface = new Ellipse ({
+      addTo: this,
+      diameter: this.frontDiameter,
+      translate: {z: y},
+      stroke: this.stroke,
+      fill: this.fill,
+      color: this.frontFace || this.color,
+      backface: this.color
+    });
+  }
+  this.centroidFactor = .75 * (2*x*x - x*x*x*x) / (3*x - x*x*x);
+
   // composite shape, create child shapes
   this.apex = new Anchor({
     addTo: this,
@@ -31,13 +57,13 @@ Hemisphere.prototype.create = function( /* options */) {
   });
   // vector used for calculation
   this.renderCentroid = new Vector();
-  this.baseVector = new Vector();
+  this.tempVector = new Vector();
 };
 
 Hemisphere.prototype.updateSortValue = function() {
   // centroid of hemisphere is 3/8 between origin and apex
   this.renderCentroid.set( this.renderOrigin )
-    .lerp( this.apex.renderOrigin, 3/8 );
+    .lerp( this.apex.renderOrigin, this.centroidFactor );
   this.sortValue = this.renderCentroid.z;
 };
 
@@ -57,13 +83,32 @@ Hemisphere.prototype.renderDome = function( ctx, renderer ) {
   }
   // eccentricity
   var normalProjectedScale = this.renderNormal.magnitude2d();
-  var eccenAngle = Math.acos( normalProjectedScale/normalScale);
+  var cosEccenAngle = normalProjectedScale/normalScale;
+  var eccenAngle = Math.acos( cosEccenAngle );
   var eccen = Math.sin( eccenAngle );
 
   var elem = this.getDomeRenderElement( ctx, renderer );
   var contourAngle = Math.atan2( this.renderNormal.y, this.renderNormal.x );
   var domeRadius = this.diameter / 2 * Math.sqrt(normalProjectedScale * normalProjectedScale + eccen * eccen)
-  var baseRadius = this.baseVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
+  var baseRadius = this.tempVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
+
+  var midAngle = 0;
+  if (this.frontDiameter > 0) {
+    var topRadius = this.tempVector.set(this.topSurface.renderOrigin).subtract(this.topSurface.pathCommands[0].renderPoints[0]).magnitude();
+    var topSurfaceTop = topRadius * eccen;
+    var topSurfaceHeight = this.tempVector.set(this.topSurface.renderOrigin).subtract(this.renderOrigin).magnitude() * cosEccenAngle;
+
+    var b = domeRadius * topRadius;
+    var b2 = b * b;
+    var a2 = baseRadius * baseRadius * topSurfaceTop * topSurfaceTop
+    var bc = b * topSurfaceHeight * topRadius;
+    if (a2 != b2) {
+      let m = bc / (b2 - a2);
+      if (m <= 1) {
+        midAngle = Math.acos(m);
+      }
+    }
+  }
 
   var x = this.renderOrigin.x;
   var y = this.renderOrigin.y;
@@ -71,7 +116,8 @@ Hemisphere.prototype.renderDome = function( ctx, renderer ) {
   if ( renderer.isCanvas ) {
     // canvas
     ctx.beginPath();
-    ctx.ellipse( x, y, domeRadius, baseRadius, contourAngle, TAU/4, -TAU/4 );
+    ctx.ellipse( x, y, domeRadius, baseRadius, contourAngle, TAU/4, TAU / 2 - midAngle );
+    ctx.ellipse( x, y, domeRadius, baseRadius, contourAngle, TAU / 2 + midAngle, 3 * TAU / 4 );
   } else if ( renderer.isSvg ) {
     // svg
     contourAngle = ( contourAngle - TAU/4 ) / TAU * 360;

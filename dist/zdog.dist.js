@@ -1683,9 +1683,18 @@ Hemisphere.prototype.renderDome = function( ctx, renderer ) {
   if ( !this.visible ) {
     return;
   }
+  var normalScale = this.renderNormal.magnitude();
+  if (normalScale <= 0) {
+    return;
+  }
+  // eccentricity
+  var normalProjectedScale = this.renderNormal.magnitude2d();
+  var eccenAngle = Math.acos( normalProjectedScale/normalScale);
+  var eccen = Math.sin( eccenAngle );
+
   var elem = this.getDomeRenderElement( ctx, renderer );
   var contourAngle = Math.atan2( this.renderNormal.y, this.renderNormal.x );
-  var domeRadius = this.diameter / 2 * this.renderNormal.magnitude2d();
+  var domeRadius = this.diameter / 2 * Math.sqrt(normalProjectedScale * normalProjectedScale + eccen * eccen)
   var baseRadius = this.baseVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
 
   var x = this.renderOrigin.x;
@@ -1927,10 +1936,13 @@ Cone.prototype.create = function( /* options */) {
     this.frontDiameter = Math.max(this.frontDiameter, 0);
   }
 
-  this.projectedLength = this.diameter * this.length /  (this.diameter - this.frontDiameter);
+  var ratio = this.diameter / (this.diameter - this.frontDiameter);
+  var projectedLength = ratio * this.length ;
+  this.centroidFactor = this.diameter == 0 ? 1/3 : (this.diameter + 2 * this.frontDiameter) / ((this.diameter + this.frontDiameter) * 3 * ratio);
+
   this.apex = new Anchor({
     addTo: this,
-    translate: { z: this.projectedLength },
+    translate: { z: projectedLength },
   });
 
   if (this.frontDiameter > 0) {
@@ -1962,7 +1974,7 @@ Cone.prototype.create = function( /* options */) {
 Cone.prototype.updateSortValue = function() {
   // center of cone is one third of its length
   this.renderCentroid.set( this.renderOrigin )
-    .lerp( this.apex.renderOrigin, 1/3 );
+    .lerp( this.apex.renderOrigin, this.centroidFactor );
   this.sortValue = this.renderCentroid.z;
 };
 

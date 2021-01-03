@@ -37,7 +37,9 @@ Cone.prototype.create = function( /* options */) {
 
   var ratio = this.diameter / (this.diameter - this.frontDiameter);
   var projectedLength = ratio * this.length ;
-  this.centroidFactor = this.diameter == 0 ? 1/3 : (this.diameter + 2 * this.frontDiameter) / ((this.diameter + this.frontDiameter) * 3 * ratio);
+
+  var x = 1 - 1 / ratio;
+  this.centroidFactor = x == 1 || this.diameter == 0 ? 1/4 : (1 - .75 * (1 - x*x*x*x) / (1 - x*x*x)); 
 
   this.apex = new Anchor({
     addTo: this,
