@@ -89,14 +89,21 @@ Hemisphere.prototype.renderDome = function( ctx, renderer ) {
 
   var elem = this.getDomeRenderElement( ctx, renderer );
   var contourAngle = Math.atan2( this.renderNormal.y, this.renderNormal.x );
-  var domeRadius = this.diameter / 2 * Math.sqrt(normalProjectedScale * normalProjectedScale + eccen * eccen)
   var baseRadius = this.tempVector.set(this.renderOrigin).subtract(this.pathCommands[0].renderPoints[0]).magnitude();
+  
+  // Dome radius would be the top most point of the curve for any theta:
+  //   domeTop = normalScale * this.diameter / 2;
+  //   y = baseRadius * sin(eccenAngle) * cos(theta) + domeTop * cos(eccenAngle) * sin(theta)
+  var x1 = baseRadius * eccen;
+  var x2 = this.diameter / 2 * normalProjectedScale;
+  var domeRadius = Math.sqrt(x1*x1 + x2*x2);
 
   var midAngle = 0;
   if (this.frontDiameter > 0) {
     var topRadius = this.tempVector.set(this.topSurface.renderOrigin).subtract(this.topSurface.pathCommands[0].renderPoints[0]).magnitude();
     var topSurfaceTop = topRadius * eccen;
     var topSurfaceHeight = this.tempVector.set(this.topSurface.renderOrigin).subtract(this.renderOrigin).magnitude() * cosEccenAngle;
+
 
     var b = domeRadius * topRadius;
     var b2 = b * b;
